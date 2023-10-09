@@ -1,10 +1,11 @@
-use crate::util::{Hash32Bytes, write_merkle_proof,encode_hash,hash_internal, MerkleProof, hash_leaf};
+use crate::util::{
+    encode_hash, hash_internal, hash_leaf, write_merkle_proof, Hash32Bytes, MerkleProof,
+};
 
 fn gen_leaves_for_merkle_tree(num_leaves: usize) -> Vec<String> {
     let leaves: Vec<String> = (0..num_leaves)
         .map(|i| format!("data item {}", i))
         .collect();
-
     println!("\nI generated #{} leaves for a Merkle tree.", num_leaves);
 
     leaves
@@ -26,16 +27,30 @@ pub fn gen_merkle_proof(leaves: Vec<String>, leaf_pos: usize) -> Vec<Hash32Bytes
     let mut hashes: Vec<Hash32Bytes> = vec![];
 
     let mut level_pos = leaf_pos;
+    // println!("pos: {}", level_pos);
     for _level in 0..height {
-        //FILL ME IN
+        let mut next_level_hashes = Vec::new();
+        for i in (0..state.len()).step_by(2) {
+            let left = state[i];
+            let right = state.get(i + 1).cloned().unwrap_or_default(); 
+            let combined = hash_internal(left, right);
+            next_level_hashes.push(combined);
+        }
+        let sibling_pos;
+        if level_pos % 2 == 0 {
+            sibling_pos = level_pos + 1;
+        } else {
+            sibling_pos = level_pos - 1;
+        }
+        hashes.push(state[sibling_pos]);
+        state = next_level_hashes;
+        level_pos >>= 1;
     }
-
-    // Returns list of hashes that make up the Merkle Proof
     hashes
 }
 
 pub fn run(leaf_position: usize) {
-    const NUM_LEAVES: usize = 1000; // replace with your actual constant
+    const NUM_LEAVES: usize = 8; // replace with your actual constant
 
     let leaves = gen_leaves_for_merkle_tree(NUM_LEAVES);
     assert!(leaf_position < leaves.len());
@@ -47,8 +62,8 @@ pub fn run(leaf_position: usize) {
     for hash in hashes {
         proof_hash_values_base64.push(encode_hash(hash))
     }
-
-    let proof = MerkleProof{
+    print!("proof_hash_values_base64: {:?}", proof_hash_values_base64);
+    let proof = MerkleProof {
         leaf_position,
         leaf_value,
         proof_hash_values_base64,
